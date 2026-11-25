@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>OpenThai OCR — ถอดข้อความจากเอกสาร</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root { --ink:#1c1b22; --muted:#6b6875; --line:#e6e3dc; --bg:#f6f5f1; --card:#fff; --accent:#1f6feb; --accent-soft:#e8f0fd; --ok:#1a7f37; --err:#b42318; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:"IBM Plex Sans Thai", system-ui, sans-serif; background:var(--bg); color:var(--ink); }
+  header { background:var(--card); border-bottom:1px solid var(--line); }
+  .wrap { max-width:1100px; margin:0 auto; padding:0 24px; }
+  header .wrap { display:flex; align-items:center; justify-content:space-between; gap:16px; padding-top:18px; padding-bottom:18px; }
+  h1 { margin:0; font-size:22px; font-weight:600; }
+  h1 small { display:block; font-size:14px; font-weight:400; color:var(--muted); margin-top:2px; }
+  .badge { font-size:13px; color:var(--muted); border:1px solid var(--line); border-radius:999px; padding:4px 12px; white-space:nowrap; }
+  .badge.ok { color:var(--ok); border-color:#b7dfc2; background:#eefaf1; }
+  .badge.bad { color:var(--err); border-color:#f3c2bd; background:#fdf0ee; }
+  main.wrap { display:grid; grid-template-columns: 380px 1fr; gap:24px; padding-top:24px; padding-bottom:40px; align-items:start; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:20px; }
+  .card h2 { margin:0 0 12px; font-size:16px; font-weight:600; }
+  #drop { border:2px dashed #c9c5bb; border-radius:12px; padding:28px 16px; text-align:center; cursor:pointer; transition:.15s; }
+  #drop:hover, #drop.over { border-color:var(--accent); background:var(--accent-soft); }
+  #drop p { margin:6px 0; color:var(--muted); font-size:14px; }
+  #drop strong { color:var(--ink); font-size:16px; }
+  #preview { margin-top:14px; display:none; }
+  #preview img { width:100%; max-height:360px; object-fit:contain; border:1px solid var(--line); border-radius:8px; background:#fafafa; }
+  #fileinfo { font-size:14px; color:var(--muted); margin-top:8px; word-break:break-all; }
+  label { display:block; font-size:14px; margin:14px 0 6px; }
+  input[type=password] { width:100%; padding:9px 12px; border:1px solid var(--line); border-radius:8px; font:inherit; }
+  button { font:inherit; border-radius:8px; cursor:pointer; }
+  #go { width:100%; margin-top:16px; padding:11px; font-size:16px; font-weight:600; border:0; background:var(--accent); color:#fff; }
+  #go:disabled { background:#a9c3ef; cursor:not-allowed; }
+  .result-head { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; }
+  .result-head h2 { margin:0; }
+  .tools button { border:1px solid var(--line); background:#fff; padding:6px 12px; font-size:14px; margin-left:6px; }
+  .tools button:disabled { opacity:.45; cursor:not-allowed; }
+  #meta { font-size:14px; color:var(--muted); margin-bottom:10px; min-height:20px; }
+  #out { font-family:inherit; white-space:pre-wrap; word-break:break-word; background:#fbfaf7; border:1px solid var(--line); border-radius:10px; padding:16px;
+         min-height:420px; max-height:70vh; overflow:auto; font-size:16px; line-height:1.7; margin:0; }
+  #out.empty { color:var(--muted); }
+  .pagebreak { display:block; color:var(--accent); font-size:13px; font-weight:600; margin:14px 0 6px; }
+  .err { color:var(--err); }
+  .spin { display:inline-block; width:14px; height:14px; border:2px solid #cfdcf6; border-top-color:var(--accent); border-radius:50%; animation:r 1s linear infinite; vertical-align:-2px; margin-right:6px; }
+  @keyframes r { to { transform:rotate(360deg); } }
+  footer { text-align:center; color:var(--muted); font-size:13px; padding:0 24px 32px; }
+  footer a { color:inherit; }
+  @media (max-width: 860px) { main.wrap { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <h1>OpenThai OCR <small>ถอดข้อความภาษาไทย–อังกฤษจากรูปภาพและ PDF · รันบน CPU</small></h1>
+    <span id="status" class="badge">กำลังเช็กระบบ…</span>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="card">
+    <h2>1. เลือกไฟล์</h2>
+    <div id="drop" tabindex="0">
+      <strong>ลากไฟล์มาวาง หรือคลิกเพื่อเลือก</strong>
+      <p>JPG · PNG · WEBP · TIFF · PDF</p>
+      <p id="limits"></p>
+    </div>
+    <input id="file" type="file" accept=".jpg,.jpeg,.png,.webp,.tif,.tiff,.bmp,.pdf,image/*,application/pdf" hidden>
+    <div id="preview"><img id="thumb" alt=""><div id="fileinfo"></div></div>
+
+    <div id="keybox" hidden>
+      <label for="key">รหัส API (เจ้าของระบบให้มา)</label>
+      <input id="key" type="password" autocomplete="off" placeholder="ใส่ครั้งเดียว เบราว์เซอร์จะจำไว้">
+    </div>
+
+    <button id="go" disabled>2. ถอดข้อความ</button>
+  </section>
+
+  <section class="card">
+    <div class="result-head">
+      <h2>ผลลัพธ์</h2>
+      <div class="tools">
+        <button id="copy" disabled>คัดลอก</button>
+        <button id="save" disabled>ดาวน์โหลด .txt</button>
+      </div>
+    </div>
+    <div id="meta"></div>
+    <pre id="out" class="empty">ข้อความที่ถอดได้จะแสดงที่นี่</pre>
+  </section>
+</main>
+
+<footer>
+  โมเดล <span id="model">OpenThai OCR</span> โดย <a href="https://huggingface.co/iapp/OpenThai2.1-OCR-Text-20261118" target="_blank" rel="noopener">iApp Technology</a> (Apache-2.0)
+  · อ่านได้ดีกับตัวพิมพ์ ยังไม่เหมาะกับลายมือ · <a href="api/docs" target="_blank">API docs</a>
+</footer>
+
+<script>
+const $ = id => document.getElementById(id);
+let file = null, result = null, needKey = false;
+
+// ใช้ path แบบ relative ทำให้วางหน้าเว็บไว้ใต้ path ย่อยได้ เช่น https://example.com/ocr/
+fetch('api/health').then(r => r.json()).then(h => {
+  $('status').textContent = 'พร้อมใช้งาน'; $('status').className = 'badge ok';
+  $('model').textContent = h.model;
+  $('limits').textContent = `ไม่เกิน ${h.max_upload_mb} MB · PDF ไม่เกิน ${h.max_pdf_pages} หน้า`;
+  needKey = h.auth;
+  if (needKey) { $('keybox').hidden = false; try { $('key').value = localStorage.getItem('ocrKey') || ''; } catch (e) {} }
+}).catch(() => { $('status').textContent = 'ติดต่อระบบไม่ได้'; $('status').className = 'badge bad'; });
+
+function pick(f) {
+  if (!f) return;
+  file = f; $('go').disabled = false;
+  $('preview').style.display = 'block';
+  $('fileinfo').textContent = `${f.name} · ${(f.size / 1024 / 1024).toFixed(2)} MB`;
+  const img = $('thumb');
+  if (f.type.startsWith('image/') && !/tiff?$/i.test(f.name)) { img.src = URL.createObjectURL(f); img.style.display = 'block'; }
+  else { img.removeAttribute('src'); img.style.display = 'none'; }
+}
+$('drop').onclick = () => $('file').click();
+$('drop').onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') $('file').click(); };
+$('file').onchange = e => pick(e.target.files[0]);
+['dragenter', 'dragover'].forEach(ev => $('drop').addEventListener(ev, e => { e.preventDefault(); $('drop').classList.add('over'); }));
+['dragleave', 'drop'].forEach(ev => $('drop').addEventListener(ev, e => { e.preventDefault(); $('drop').classList.remove('over'); }));
+$('drop').addEventListener('drop', e => pick(e.dataTransfer.files[0]));
+
+function show(res) {
+  const out = $('out'); out.className = ''; out.textContent = '';
+  res.pages.forEach(p => {
+    if (res.pages.length > 1) { const s = document.createElement('span'); s.className = 'pagebreak'; s.textContent = `— หน้า ${p.page} —`; out.appendChild(s); }
+    out.appendChild(document.createTextNode(p.text + '\n'));
+  });
+  const lines = res.pages.reduce((a, p) => a + p.lines, 0);
+  $('meta').textContent = `${res.file} · ${res.pages.length} หน้า · ${lines} บรรทัด · ใช้เวลา ${res.seconds} วินาที`;
+  $('copy').disabled = $('save').disabled = false;
+}
+
+$('go').onclick = async () => {
+  if (!file) return;
+  const key = $('key').value.trim();
+  if (needKey) { if (!key) { $('key').focus(); return; } try { localStorage.setItem('ocrKey', key); } catch (e) {} }
+  const fd = new FormData(); fd.append('file', file);
+  $('go').disabled = true; $('copy').disabled = $('save').disabled = true;
+  const t0 = Date.now();
+  const tick = setInterval(() => { $('meta').innerHTML = `<span class="spin"></span>กำลังถอดข้อความ… ${((Date.now() - t0) / 1000).toFixed(0)} วินาที`; }, 250);
+  try {
+    const r = await fetch('api/ocr', { method: 'POST', body: fd, headers: needKey ? { 'X-API-Key': key } : {} });
+    const body = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(body.detail || `ผิดพลาด (HTTP ${r.status})`);
+    result = body; clearInterval(tick); show(body);
+  } catch (e) {
+    clearInterval(tick); $('meta').innerHTML = ''; const s = document.createElement('span'); s.className = 'err'; s.textContent = e.message; $('meta').appendChild(s);
+  } finally { $('go').disabled = false; }
+};
+
+$('copy').onclick = async () => { await navigator.clipboard.writeText(result.text); $('copy').textContent = 'คัดลอกแล้ว ✓'; setTimeout(() => $('copy').textContent = 'คัดลอก', 1500); };
+$('save').onclick = () => {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([result.text], { type: 'text/plain;charset=utf-8' }));
+  a.download = (result.file || 'ocr').replace(/\.[^.]+$/, '') + '.txt'; a.click();
+};
+</script>
+</body>
+</html>

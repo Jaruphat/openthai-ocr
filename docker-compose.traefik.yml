@@ -1,0 +1,12 @@
+# ใช้แทน Caddy เมื่อในเครื่องมี Traefik อยู่แล้ว (เช่น ติดตั้งแอปผ่าน Docker Manager ของ Hostinger)
+# ชื่อ ocrweb ต้องไม่ซ้ำกับ router อื่นใน Traefik ตัวเดียวกัน
+# รันด้วย: docker compose -f docker-compose.yml -f docker-compose.traefik.yml up -d
+services:
+  ocr:
+    ports: !reset []      # ไม่เปิดพอร์ต 8000 ออกนอกเครื่อง ให้เข้าผ่านโดเมนอย่างเดียว
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.ocrweb.rule=Host(`${DOMAIN}`)
+      - traefik.http.routers.ocrweb.entrypoints=websecure
+      - traefik.http.routers.ocrweb.tls.certresolver=letsencrypt
+      - traefik.http.services.ocrweb.loadbalancer.server.port=8000

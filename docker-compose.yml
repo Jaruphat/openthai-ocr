@@ -1,0 +1,31 @@
+services:
+  # ตัวอ่าน OCR + หน้าเว็บ (FastAPI) — โมเดลอยู่ในโฟลเดอร์ ./model
+  ocr:
+    build: .
+    image: openthai-ocr:local
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - ./model:/model:ro
+    ports:
+      - "8000:8000"        # เปิดดูได้ที่ http://IP-ของ-VPS:8000 (ปิดบรรทัดนี้ได้เมื่อใช้โดเมน + HTTPS แล้ว)
+
+  # (ไม่บังคับ) Caddy ทำ HTTPS ให้อัตโนมัติ ใช้เมื่อมีโดเมน: docker compose --profile https up -d
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    profiles: ["https"]
+    env_file: .env
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - ocr
+
+volumes:
+  caddy_data:
+  caddy_config:

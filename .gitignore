@@ -1,0 +1,7 @@
+# ความลับ — ห้าม commit
+.env
+# โมเดลดาวน์โหลดด้วย ./download-model.sh
+model/
+__pycache__/
+*.pyc
+.DS_Store

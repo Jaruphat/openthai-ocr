@@ -1,0 +1,12 @@
+# ตัวโมเดล (ตาม requirements.txt ของ OpenThai2.1-OCR-Text v2.1.4)
+numpy>=2.0,<3
+opencv-python-headless>=4.8
+pyclipper>=1.3
+openvino>=2024.0
+pillow>=10
+# อ่าน PDF (แปลงแต่ละหน้าเป็นภาพ) — ไม่ต้องลงโปรแกรมเพิ่มในเครื่อง
+pypdfium2>=4.30
+# เว็บ API
+fastapi>=0.115
+uvicorn[standard]>=0.30
+python-multipart>=0.0.9
